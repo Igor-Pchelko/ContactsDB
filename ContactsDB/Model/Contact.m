@@ -61,11 +61,10 @@
 }
 
 - (NSString*)description {
-    return [NSString stringWithFormat:@"%@;%@;%@;%@", self.objectID, self.identifier, self.givenName, self.familyName];
+    return [NSString stringWithFormat:@"%p;%@;%@;%@;%@", self, self.objectID, self.identifier, self.givenName, self.familyName];
 }
 
-- (BOOL)isContentIdentical:(Contact*)contact
-{
+- (BOOL)isContentIdentical:(Contact*)contact {
     if (![self.givenName isEqual:contact.givenName])
         return NO;
     if (![self.familyName isEqual:contact.familyName])

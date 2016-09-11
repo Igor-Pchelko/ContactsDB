@@ -11,7 +11,7 @@
 #import "ContactsModel.h"
 #import "ContactTableViewCell.h"
 
-@interface ContactsListViewController () <NSFetchedResultsControllerDelegate>
+@interface ContactsListViewController () <NSFetchedResultsControllerDelegate, ContactsModelProtocol>
 
 @property (nonatomic, strong) NSFetchedResultsController *fetchedResultsController;
 
@@ -22,11 +22,8 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    // Uncomment the following line to preserve selection between presentations.
-    // self.clearsSelectionOnViewWillAppear = NO;
-    
-    // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-    // self.navigationItem.rightBarButtonItem = self.editButtonItem;
+    [ContactsModel sharedInstance].delegate = self;
+    [[ContactsModel sharedInstance] update];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -35,10 +32,38 @@
 }
 
 
+#pragma mark - ContactsModelProtocol
+
+- (void)contactsModelDidFailWithNoPermissions {
+    
+    UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Contact permissions is required"
+                                                                   message:@"Please enable contact permission to allow syncronize contacts in app."
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction* defaultAction = [UIAlertAction actionWithTitle:@"Go to settings"
+                                                            style:UIAlertActionStyleDefault
+                                                          handler:^(UIAlertAction * action) {
+                                                              
+                                                              NSURL *url = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+                                                              [[UIApplication sharedApplication] openURL:url];
+                                                          }];
+    
+    [alert addAction:defaultAction];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)contactsModelDidLoad {
+    NSLog(@"contactsModelDidLoad: reload");
+    [self initFetchedResultsController];
+    [self.tableView reloadData];
+}
+
 #pragma mark - UITableViewDelegate
 
-
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    
+    if (self.fetchedResultsController == nil)
+        return 0;
     
     NSInteger numberOfRows = 0;
     
@@ -52,11 +77,17 @@
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
     
+    if (self.fetchedResultsController == nil)
+        return 0;
+
     return self.fetchedResultsController.sections.count;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     
+    if (self.fetchedResultsController == nil)
+        return nil;
+
     static NSString *kContactCellID = @"ContactCellID";
     ContactTableViewCell *cell = (ContactTableViewCell *)[tableView dequeueReusableCellWithIdentifier:kContactCellID];
     
@@ -72,53 +103,49 @@
 
 // called after fetched results controller received a content change notification
 - (void)controllerDidChangeContent:(NSFetchedResultsController *)controller {
-    
+
     [self.tableView reloadData];
 }
 
-- (NSFetchedResultsController *)fetchedResultsController {
+- (void)initFetchedResultsController {
     
-    // Set up the fetched results controller if needed.
-    if (_fetchedResultsController == nil) {
-        
-        // Create the fetch request for the entity.
-        NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
-        // Edit the entity name as appropriate.
-        NSEntityDescription *entity = [NSEntityDescription entityForName:@"Contact"
-                    inManagedObjectContext:[[ContactsModel sharedInstance] managedObjectContext]];
-        [fetchRequest setEntity:entity];
-        
-        // sort by date
-        NSSortDescriptor *sortDescriptor = [[NSSortDescriptor alloc] initWithKey:@"familyName" ascending:YES];
-        NSArray *sortDescriptors = [[NSArray alloc] initWithObjects:sortDescriptor, nil];
-        [fetchRequest setSortDescriptors:sortDescriptors];
-        
-        // Edit the section name key path and cache name if appropriate.
-        // nil for section name key path means "no sections".
-        NSFetchedResultsController *aFetchedResultsController =
-        [[NSFetchedResultsController alloc] initWithFetchRequest:fetchRequest
-                                            managedObjectContext:[[ContactsModel sharedInstance] managedObjectContext]
-                                              sectionNameKeyPath:nil
-                                                       cacheName:nil];
-        self.fetchedResultsController = aFetchedResultsController;
-        
-        self.fetchedResultsController.delegate = self;
-        
-        NSError *error = nil;
-        
-        if (![self.fetchedResultsController performFetch:&error]) {
-            // Replace this implementation with code to handle the error appropriately.
-            // abort() causes the application to generate a crash log and terminate.
-            // You should not use this function in a shipping application, although it may be useful
-            // during development. If it is not possible to recover from the error, display an alert
-            // panel that instructs the user to quit the application by pressing the Home button.
-            //
-            NSLog(@"Unresolved error %@, %@", error, [error userInfo]);
-            abort();
-        }
+    // Set up the fetched results controller
+    self.fetchedResultsController = nil;
+    
+    // Create the fetch request for the entity.
+    NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
+    // Edit the entity name as appropriate.
+    NSEntityDescription *entity = [NSEntityDescription entityForName:@"Contact"
+                                              inManagedObjectContext:[[ContactsModel sharedInstance] managedObjectContext]];
+    [fetchRequest setEntity:entity];
+    
+    // sort by date
+    NSSortDescriptor *sortDescriptor = [[NSSortDescriptor alloc] initWithKey:@"familyName" ascending:YES];
+    NSArray *sortDescriptors = [[NSArray alloc] initWithObjects:sortDescriptor, nil];
+    [fetchRequest setSortDescriptors:sortDescriptors];
+    
+    // Edit the section name key path and cache name if appropriate.
+    // nil for section name key path means "no sections".
+    NSFetchedResultsController *aFetchedResultsController =
+    [[NSFetchedResultsController alloc] initWithFetchRequest:fetchRequest
+                                        managedObjectContext:[[ContactsModel sharedInstance] managedObjectContext]
+                                          sectionNameKeyPath:nil
+                                                   cacheName:nil];
+    self.fetchedResultsController = aFetchedResultsController;
+    self.fetchedResultsController.delegate = self;
+    
+    NSError *error = nil;
+    
+    if (![self.fetchedResultsController performFetch:&error]) {
+        // Replace this implementation with code to handle the error appropriately.
+        // abort() causes the application to generate a crash log and terminate.
+        // You should not use this function in a shipping application, although it may be useful
+        // during development. If it is not possible to recover from the error, display an alert
+        // panel that instructs the user to quit the application by pressing the Home button.
+        //
+        NSLog(@"Unresolved error %@, %@", error, [error userInfo]);
+        abort();
     }
-    
-    return _fetchedResultsController;
 }
 
 @end

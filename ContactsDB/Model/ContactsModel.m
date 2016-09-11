@@ -10,11 +10,14 @@
 #import "NSHashTable+Utilities.h"
 #import "StoredContact.h"
 #import "Contact.h"
+#import "ContactsSynchronizer.h"
+@import UIKit;
 
 @interface ContactsModel()
     @property (strong, nonatomic) NSManagedObjectContext *backgroundManagedObjectContext;
     @property (strong, nonatomic) NSMutableArray *allStoredContacts;
-    @property (strong, nonatomic) NSMutableArray *allSystemContacts;
+    @property (strong, nonatomic) ContactsSynchronizer *contactsSynchronizer;
+    @property (nonatomic) BOOL isResyncContactsRequired;
 @end
 
 
@@ -34,119 +37,98 @@
     self = [super init];
     
     if (self) {
+        
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(applicationDidBecomeActive:)
+                                                     name:UIApplicationDidBecomeActiveNotification object:nil];
+
+        self.contactsSynchronizer = [[ContactsSynchronizer alloc] init];
+
         // Subscribe for contacts changes
         NSNotificationCenter * nc = [NSNotificationCenter defaultCenter];
         [nc addObserver:self selector:@selector(contactStoreDidChange:) name:CNContactStoreDidChangeNotification object:nil];
-        
-        // Start updates
-        [self updateStoredContacts];
-        [self updateContactList];
     }
     
     return self;
 }
 
-- (void)updateStoredContacts {
-    NSLog(@"updateStoredContacts");
-    self.allSystemContacts = nil;
-    
-    __weak typeof(self) weakSelf = self;
-    
-    [self initializeCoreDataWithBlock:^(BOOL succeeded, NSError *error) {
-        NSAssert(succeeded, @"Failed to initialize CoreData with error: %@\n%@", [error localizedDescription], [error userInfo]);
-        
-        [self loadAllStoredContactsWithBlock:^(BOOL succeeded, NSError *error, NSMutableArray *contacts) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                __strong typeof(self) strongSelf = weakSelf;
-                strongSelf.allStoredContacts = contacts;
-                NSString *title = [NSString stringWithFormat:@"allStoredContacts: %lu", strongSelf.allStoredContacts.count];
-                [strongSelf dumpCollection:strongSelf.allStoredContacts withTitle:title];
-                [strongSelf syncContacts];
-            });
-        }];
+- (void)update {
+    // Start updates
+    [self updateStoredContactsWithBlock:^{
+        if (self.delegate) {
+            [self.delegate contactsModelDidLoad];
+        }
+        [self syncContacts];
     }];
 }
 
-- (void)updateContactList {
-    NSLog(@"updateContactList");
-    __weak typeof(self) weakSelf = self;
+- (void)applicationDidBecomeActive:(NSNotification*) notification {
     
-    // Reset system contacts
-    self.allSystemContacts = nil;
+    if (![self hasPermissions]) {
+        NSLog(@"applicationDidBecomeActive: no permissions");
+        if (self.delegate) {
+            [self.delegate contactsModelDidFailWithNoPermissions];
+        }
+    }
+}
 
-    [self loadContactListWithBlock:^(BOOL succeeded, NSError *error, NSMutableArray *contacts) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            __strong typeof(self) strongSelf = weakSelf;
-            strongSelf.allSystemContacts = contacts;
-            NSString *title = [NSString stringWithFormat:@"allSystemContacts: %lu", strongSelf.allSystemContacts.count];
-            [strongSelf dumpCollection:strongSelf.allSystemContacts withTitle:title];
-            [strongSelf syncContacts];
-        });
-    }];
+- (BOOL)hasPermissions {
+    CNAuthorizationStatus status = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
+    return (status == CNAuthorizationStatusAuthorized);
+}
+
+#pragma mark - Sync cotacts
+
+- (void)syncContacts {
+    
+    NSLog(@"syncContacts");
+
+    if (![self hasPermissions]) {
+        NSLog(@"syncContacts: no permissions");
+        if (self.delegate) {
+            [self.delegate contactsModelDidFailWithNoPermissions];
+        }
+        return;
+    }
+    
+    if (!self.contactsSynchronizer.isFinished)
+    {
+        NSLog(@"syncContacts not yet finished");
+        self.isResyncContactsRequired = YES;
+        return;
+    }
+    
+    self.isResyncContactsRequired = NO;
+    
+    [self.contactsSynchronizer syncWithStoredContacts:self.allStoredContacts
+                                            withBlock:^(NSError *error,
+                                                        NSArray *contactsToAdd,
+                                                        NSArray *contactsToDelete,
+                                                        NSArray *contactsToUpdate) {
+                                                
+                                                NSLog(@"syncContacts complete");
+                                                [self addContacts:contactsToAdd inManagedObjectContext:self.backgroundManagedObjectContext];
+                                                [self deleteContacts:contactsToDelete inManagedObjectContext:self.backgroundManagedObjectContext];
+                                                [self updateContacts:contactsToUpdate inManagedObjectContext:self.backgroundManagedObjectContext];
+                                                
+                                                if (self.isResyncContactsRequired) {
+                                                    NSLog(@"re-syncContacts");
+                                                    [self syncContacts];
+                                                    return;
+                                                }
+                                            }];
 }
 
 - (void)contactStoreDidChange: (NSNotification*) notification {
     NSLog(@"contactStoreDidChange: %@", notification);
-    [self updateContactList];
+    [self syncContacts];
 }
 
-- (void)syncContacts {
-    // Skip sync if we don't have enough info yet to process it
-    if (self.allStoredContacts == nil || self.allSystemContacts == nil)
-        return;
+- (void)addContacts:(NSArray*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
     
-    NSHashTable *allStoredContactsHashTable = [NSHashTable weakObjectsHashTable];
-    [allStoredContactsHashTable addObjects:self.allStoredContacts];
-    
-    NSHashTable *allSystemContactsTable = [NSHashTable weakObjectsHashTable];
-    [allSystemContactsTable addObjects:self.allSystemContacts];
-    
-    // Here is rough logic with sets operations Union, Minus,
-    // Intersect wich could be optimized with one cycle in which
-    // we could find all required data
-    
-    // Find contacts to add
-    NSHashTable *contactsToAdd = [NSHashTable weakObjectsHashTable];
-    [contactsToAdd unionHashTable:allSystemContactsTable];
-    [contactsToAdd minusHashTable:allStoredContactsHashTable];
-    
-    NSString *title = [NSString stringWithFormat:@"contactsToAdd: %lu", contactsToAdd.count];
-    [self dumpCollection:contactsToAdd withTitle:title];
-    [self addContacts:contactsToAdd inManagedObjectContext:self.backgroundManagedObjectContext];
-    
-    // Find contacts to remove
-    NSHashTable *contactsToRemove = [NSHashTable weakObjectsHashTable];
-    [contactsToRemove unionHashTable:allStoredContactsHashTable];
-    [contactsToRemove minusHashTable:allSystemContactsTable];
-    title = [NSString stringWithFormat:@"contactsToRemove: %lu", contactsToRemove.count];
-    [self dumpCollection:contactsToRemove withTitle:title];
-
-    // Find contacts to update
-    NSHashTable *allContactsToUpdate = [NSHashTable weakObjectsHashTable];
-    [allContactsToUpdate unionHashTable:allStoredContactsHashTable];
-    [allContactsToUpdate intersectHashTable:allSystemContactsTable];
-
-    NSHashTable *contactsToUpdate = [NSHashTable weakObjectsHashTable];
-
-    for (Contact *storedContact in allContactsToUpdate) {
-        Contact *systemContact = [allSystemContactsTable member:storedContact];
-        
-        if (![systemContact isContentIdentical:storedContact]) {
-            storedContact.givenName = systemContact.givenName;
-            storedContact.familyName = systemContact.familyName;
-            [contactsToUpdate addObject:storedContact];
-        }
-    }
-    
-    title = [NSString stringWithFormat:@"contactsToUpdate: %lu", contactsToUpdate.count];
-    [self dumpCollection:contactsToUpdate withTitle:title];
-    [self updateContacts:contactsToUpdate inManagedObjectContext:self.backgroundManagedObjectContext];
-}
-
-- (void)addContacts:(NSHashTable*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
     [context performBlock:^{
         NSLog(@"addContacts: %lu", contacts.count);
-
+        
         for (id contact in contacts) {
             [self addContact:contact inManagedObjectContext:context];
         }
@@ -165,7 +147,7 @@
         NSLog(@"Error saving context: %@\n%@", [error localizedDescription], [error userInfo]);
         abort();
     }
-
+    
     // Save to all stored contacts
     dispatch_barrier_async(dispatch_get_global_queue( QOS_CLASS_DEFAULT, 0), ^{
         Contact *contact = [Contact contactWithStoredContact: storedContact];
@@ -173,7 +155,7 @@
     });
 }
 
-- (void)deleteContacts:(NSHashTable*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
+- (void)deleteContacts:(NSArray*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
     [context performBlock:^{
         NSLog(@"deleteContacts: %lu", contacts.count);
         
@@ -211,7 +193,7 @@
     });
 }
 
-- (void)updateContacts:(NSHashTable*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
+- (void)updateContacts:(NSArray*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
     [context performBlock:^{
         NSLog(@"updateContacts: %lu", contacts.count);
         
@@ -222,7 +204,7 @@
 }
 
 - (void)updateContact:(Contact*)contact inManagedObjectContext:(NSManagedObjectContext *)context {
-    
+
     NSFetchRequest *request = [[NSFetchRequest alloc] init];
     [request setEntity:[NSEntityDescription entityForName:@"Contact" inManagedObjectContext:context]];
     
@@ -245,41 +227,26 @@
     }
 }
 
-- (void)loadContactListWithBlock:(void (^)(BOOL succeeded, NSError *error, NSMutableArray *contacts)) completitionBlock {
-    // TODO: load contacts in background thread
-    CNAuthorizationStatus status = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
-    
-    if (status == CNAuthorizationStatusDenied || status == CNAuthorizationStatusRestricted) {
-        completitionBlock(NO, nil, nil);
-        return;
-    }
-    
-    dispatch_async(dispatch_get_global_queue( QOS_CLASS_DEFAULT, 0), ^(void) {
-        
-        // Create repository objects contacts
-        CNContactStore *contactStore = [[CNContactStore alloc] init];
 
-        // Specify requested fields
-        NSArray *keys = @[CNContactIdentifierKey,
-                          CNContactGivenNameKey,
-                          CNContactFamilyNameKey,
-                          ];
+#pragma mark - Stored cotacts
+
+- (void)updateStoredContactsWithBlock:(void (^)()) completitionBlock  {
+    NSLog(@"updateStoredContacts");
+    self.allStoredContacts = nil;
+    
+    __weak typeof(self) weakSelf = self;
+    
+    [self initializeCoreDataWithBlock:^(BOOL succeeded, NSError *error) {
+        NSAssert(succeeded, @"Failed to initialize CoreData with error: %@\n%@", [error localizedDescription], [error userInfo]);
         
-        // Create a request object
-        CNContactFetchRequest *request = [[CNContactFetchRequest alloc] initWithKeysToFetch:keys];
-        request.predicate = nil;
-        
-        NSMutableArray *contacts = [NSMutableArray arrayWithCapacity:50];
-        
-        [contactStore enumerateContactsWithFetchRequest:request
-                                                  error:nil
-                                             usingBlock:^(CNContact* __nonnull contact, BOOL* __nonnull stop) {
-             Contact *contactObj = [Contact contactWithCNContact:contact];
-             [contacts addObject:contactObj];
-         }];
-        
-        completitionBlock(YES, nil, contacts);
-    });
+        [self loadAllStoredContactsWithBlock:^(BOOL succeeded, NSError *error, NSMutableArray *contacts) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                __strong typeof(self) strongSelf = weakSelf;
+                strongSelf.allStoredContacts = contacts;
+                completitionBlock();
+            });
+        }];
+    }];
 }
 
 - (void)managedObjectContextDidSave:(NSNotification *)notification {
@@ -321,7 +288,6 @@
     NSLog(@"storeURL: %@", storeURL);
     
     dispatch_async(dispatch_get_global_queue( QOS_CLASS_DEFAULT, 0), ^(void) {
-        
         NSError *error = nil;
         NSPersistentStore *store = [psc addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:nil error:&error];
         completitionBlock(store != nil, error);

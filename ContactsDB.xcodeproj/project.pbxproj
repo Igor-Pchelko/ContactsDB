@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		447B83AF1D856008008320B4 /* ContactsSynchronizer.m in Sources */ = {isa = PBXBuildFile; fileRef = 447B83AE1D856008008320B4 /* ContactsSynchronizer.m */; };
+		447B83B11D859D62008320B4 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 447B83B01D859D62008320B4 /* Images.xcassets */; };
 		447D68371D844A26009E45F6 /* ContactsModel.m in Sources */ = {isa = PBXBuildFile; fileRef = 447D68301D844A26009E45F6 /* ContactsModel.m */; };
 		447D68381D844A26009E45F6 /* DataModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 447D68311D844A26009E45F6 /* DataModel.xcdatamodeld */; };
 		447D683A1D844A26009E45F6 /* NSHashTable+Utilities.m in Sources */ = {isa = PBXBuildFile; fileRef = 447D68361D844A26009E45F6 /* NSHashTable+Utilities.m */; };
@@ -17,13 +19,11 @@
 		449A55CA1D81A6BB005046D8 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 449A55C91D81A6BB005046D8 /* main.m */; };
 		449A55CD1D81A6BB005046D8 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 449A55CC1D81A6BB005046D8 /* AppDelegate.m */; };
 		449A55D91D81A6BB005046D8 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 449A55D71D81A6BB005046D8 /* Main.storyboard */; };
-		449A55DB1D81A6BB005046D8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 449A55DA1D81A6BB005046D8 /* Assets.xcassets */; };
 		449A55DE1D81A6BB005046D8 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 449A55DC1D81A6BB005046D8 /* LaunchScreen.storyboard */; };
 		449A55E91D81A6BB005046D8 /* ContactsDBTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 449A55E81D81A6BB005046D8 /* ContactsDBTests.m */; };
 		449A55F41D81A6BB005046D8 /* ContactsDBUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 449A55F31D81A6BB005046D8 /* ContactsDBUITests.m */; };
 		449A56061D81ADBC005046D8 /* Contacts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 449A56051D81ADBC005046D8 /* Contacts.framework */; };
 		449A560B1D81CB73005046D8 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 449A560A1D81CB73005046D8 /* CoreData.framework */; };
-		44F132F31D848B2B00324F67 /* FetchSystemContactsOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = 44F132F21D848B2B00324F67 /* FetchSystemContactsOperation.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +44,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		447B83AD1D856008008320B4 /* ContactsSynchronizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ContactsSynchronizer.h; sourceTree = "<group>"; };
+		447B83AE1D856008008320B4 /* ContactsSynchronizer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ContactsSynchronizer.m; sourceTree = "<group>"; };
+		447B83B01D859D62008320B4 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
 		447D682F1D844A26009E45F6 /* ContactsModel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ContactsModel.h; sourceTree = "<group>"; };
 		447D68301D844A26009E45F6 /* ContactsModel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ContactsModel.m; sourceTree = "<group>"; };
 		447D68321D844A26009E45F6 /* DataModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = DataModel.xcdatamodel; sourceTree = "<group>"; };
@@ -62,7 +65,6 @@
 		449A55CB1D81A6BB005046D8 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		449A55CC1D81A6BB005046D8 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		449A55D81D81A6BB005046D8 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
-		449A55DA1D81A6BB005046D8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		449A55DD1D81A6BB005046D8 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		449A55DF1D81A6BB005046D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		449A55E41D81A6BB005046D8 /* ContactsDBTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ContactsDBTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -73,8 +75,6 @@
 		449A55F51D81A6BB005046D8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		449A56051D81ADBC005046D8 /* Contacts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Contacts.framework; path = System/Library/Frameworks/Contacts.framework; sourceTree = SDKROOT; };
 		449A560A1D81CB73005046D8 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
-		44F132F11D848B2B00324F67 /* FetchSystemContactsOperation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FetchSystemContactsOperation.h; sourceTree = "<group>"; };
-		44F132F21D848B2B00324F67 /* FetchSystemContactsOperation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FetchSystemContactsOperation.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +107,8 @@
 		447D682E1D844A26009E45F6 /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				447B83AD1D856008008320B4 /* ContactsSynchronizer.h */,
+				447B83AE1D856008008320B4 /* ContactsSynchronizer.m */,
 				447D682F1D844A26009E45F6 /* ContactsModel.h */,
 				447D68301D844A26009E45F6 /* ContactsModel.m */,
 				447D68311D844A26009E45F6 /* DataModel.xcdatamodeld */,
@@ -116,8 +118,6 @@
 				447D683C1D844A3F009E45F6 /* StoredContact.m */,
 				447D683E1D844A80009E45F6 /* Contact.h */,
 				447D683F1D844A80009E45F6 /* Contact.m */,
-				44F132F11D848B2B00324F67 /* FetchSystemContactsOperation.h */,
-				44F132F21D848B2B00324F67 /* FetchSystemContactsOperation.m */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -150,7 +150,6 @@
 				447D682E1D844A26009E45F6 /* Model */,
 				449A55CB1D81A6BB005046D8 /* AppDelegate.h */,
 				449A55CC1D81A6BB005046D8 /* AppDelegate.m */,
-				449A55DA1D81A6BB005046D8 /* Assets.xcassets */,
 				449A55D71D81A6BB005046D8 /* Main.storyboard */,
 				449A55DC1D81A6BB005046D8 /* LaunchScreen.storyboard */,
 				449A55DF1D81A6BB005046D8 /* Info.plist */,
@@ -159,6 +158,7 @@
 				447D68441D8477B3009E45F6 /* ContactTableViewCell.h */,
 				447D68451D8477B3009E45F6 /* ContactTableViewCell.m */,
 				447D68421D84723F009E45F6 /* ContactsListViewController.m */,
+				447B83B01D859D62008320B4 /* Images.xcassets */,
 			);
 			path = ContactsDB;
 			sourceTree = "<group>";
@@ -293,8 +293,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				447B83B11D859D62008320B4 /* Images.xcassets in Resources */,
 				449A55DE1D81A6BB005046D8 /* LaunchScreen.storyboard in Resources */,
-				449A55DB1D81A6BB005046D8 /* Assets.xcassets in Resources */,
 				449A55D91D81A6BB005046D8 /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -324,7 +324,7 @@
 				447D68431D84723F009E45F6 /* ContactsListViewController.m in Sources */,
 				447D68371D844A26009E45F6 /* ContactsModel.m in Sources */,
 				449A55CD1D81A6BB005046D8 /* AppDelegate.m in Sources */,
-				44F132F31D848B2B00324F67 /* FetchSystemContactsOperation.m in Sources */,
+				447B83AF1D856008008320B4 /* ContactsSynchronizer.m in Sources */,
 				447D68381D844A26009E45F6 /* DataModel.xcdatamodeld in Sources */,
 				449A55CA1D81A6BB005046D8 /* main.m in Sources */,
 				447D683A1D844A26009E45F6 /* NSHashTable+Utilities.m in Sources */,
@@ -472,6 +472,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = "Brand Assets";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				INFOPLIST_FILE = ContactsDB/Info.plist;
@@ -486,6 +487,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = "Brand Assets";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				INFOPLIST_FILE = ContactsDB/Info.plist;
