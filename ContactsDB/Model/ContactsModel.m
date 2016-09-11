@@ -78,6 +78,8 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             __strong typeof(self) strongSelf = weakSelf;
             strongSelf.allSystemContacts = contacts;
+            NSString *title = [NSString stringWithFormat:@"allSystemContacts: %lu", strongSelf.allSystemContacts.count];
+            [strongSelf dumpCollection:strongSelf.allSystemContacts withTitle:title];
             [strongSelf syncContacts];
         });
     }];
@@ -87,7 +89,6 @@
     NSLog(@"contactStoreDidChange: %@", notification);
     [self updateContactList];
 }
-
 
 - (void)syncContacts {
     // Skip sync if we don't have enough info yet to process it
@@ -99,6 +100,10 @@
     
     NSHashTable *allSystemContactsTable = [NSHashTable weakObjectsHashTable];
     [allSystemContactsTable addObjects:self.allSystemContacts];
+    
+    // Here is rough logic with sets operations Union, Minus,
+    // Intersect wich could be optimized with one cycle in which
+    // we could find all required data
     
     // Find contacts to add
     NSHashTable *contactsToAdd = [NSHashTable weakObjectsHashTable];
@@ -148,6 +153,26 @@
     }];
 }
 
+- (void)addContact:(Contact*)contact inManagedObjectContext:(NSManagedObjectContext *)context {
+    StoredContact *storedContact = [NSEntityDescription insertNewObjectForEntityForName:@"Contact" inManagedObjectContext:context];
+    
+    storedContact.identifier = contact.identifier;
+    storedContact.givenName = contact.givenName;
+    storedContact.familyName = contact.familyName;
+    
+    NSError *error = nil;
+    if (![context save:&error]) {
+        NSLog(@"Error saving context: %@\n%@", [error localizedDescription], [error userInfo]);
+        abort();
+    }
+
+    // Save to all stored contacts
+    dispatch_barrier_async(dispatch_get_global_queue( QOS_CLASS_DEFAULT, 0), ^{
+        Contact *contact = [Contact contactWithStoredContact: storedContact];
+        [self.allStoredContacts addObject:contact];
+    });
+}
+
 - (void)deleteContacts:(NSHashTable*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
     [context performBlock:^{
         NSLog(@"deleteContacts: %lu", contacts.count);
@@ -156,32 +181,6 @@
             [self deleteContact:contact inManagedObjectContext:context];
         }
     }];
-}
-
-- (void)updateContacts:(NSHashTable*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
-    [context performBlock:^{
-        NSLog(@"updateContacts: %lu", contacts.count);
-
-        for (id contact in contacts) {
-            [self updateContact:contact inManagedObjectContext:context];
-        }
-    }];
-}
-
-- (void)addContact:(Contact*)contact inManagedObjectContext:(NSManagedObjectContext *)context {
-    StoredContact *storedContact = [NSEntityDescription insertNewObjectForEntityForName:@"Contact" inManagedObjectContext:context];
-    
-    storedContact.identifier = contact.identifier;
-    storedContact.givenName = contact.givenName;
-    storedContact.familyName = contact.familyName;
-
-    if ([context hasChanges]) {
-        NSError *error = nil;
-        if (![context save:&error]) {
-            NSLog(@"Error saving context: %@\n%@", [error localizedDescription], [error userInfo]);
-            abort();
-        }
-    }
 }
 
 - (void)deleteContact:(Contact*)contact inManagedObjectContext:(NSManagedObjectContext *)context {
@@ -201,12 +200,25 @@
 
     [context deleteObject:storedContact];
     
-    if ([context hasChanges]) {
-        if (![context save:&error]) {
-            NSLog(@"Error saving context: %@\n%@", [error localizedDescription], [error userInfo]);
-            abort();
-        }
+    if (![context save:&error]) {
+        NSLog(@"Error saving context: %@\n%@", [error localizedDescription], [error userInfo]);
+        abort();
     }
+
+    // Delete from stored contacts
+    dispatch_barrier_async(dispatch_get_global_queue( QOS_CLASS_DEFAULT, 0), ^{
+        [self.allStoredContacts removeObject:contact];
+    });
+}
+
+- (void)updateContacts:(NSHashTable*)contacts inManagedObjectContext:(NSManagedObjectContext *)context {
+    [context performBlock:^{
+        NSLog(@"updateContacts: %lu", contacts.count);
+        
+        for (id contact in contacts) {
+            [self updateContact:contact inManagedObjectContext:context];
+        }
+    }];
 }
 
 - (void)updateContact:(Contact*)contact inManagedObjectContext:(NSManagedObjectContext *)context {
@@ -227,11 +239,9 @@
     storedContact.givenName = contact.givenName;
     storedContact.familyName = contact.familyName;
     
-    if ([context hasChanges]) {
-        if (![context save:&error]) {
-            NSLog(@"Error saving context: %@\n%@", [error localizedDescription], [error userInfo]);
-            abort();
-        }
+    if (![context save:&error]) {
+        NSLog(@"Error saving context: %@\n%@", [error localizedDescription], [error userInfo]);
+        abort();
     }
 }
 
@@ -263,14 +273,23 @@
         
         [contactStore enumerateContactsWithFetchRequest:request
                                                   error:nil
-                                             usingBlock:^(CNContact* __nonnull contact, BOOL* __nonnull stop)
-         {
+                                             usingBlock:^(CNContact* __nonnull contact, BOOL* __nonnull stop) {
              Contact *contactObj = [Contact contactWithCNContact:contact];
              [contacts addObject:contactObj];
          }];
         
         completitionBlock(YES, nil, contacts);
     });
+}
+
+- (void)managedObjectContextDidSave:(NSNotification *)notification {
+    // Here we assume that this is a did-save notification from the parent.
+    // Because parent is of private queue concurrency type, we are
+    // on a background thread and can't use child (which is of main queue
+    // concurrency type) directly.
+    [self.managedObjectContext performBlock:^{
+        [self.managedObjectContext mergeChangesFromContextDidSaveNotification:notification];
+    }];
 }
 
 - (void)initializeCoreDataWithBlock:(void (^)(BOOL succeeded, NSError *error)) completitionBlock {
@@ -283,13 +302,18 @@
         return;
     }
     
-    NSPersistentStoreCoordinator *psc = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:mom];
+    __block NSPersistentStoreCoordinator *psc = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:mom];
+
+    self.backgroundManagedObjectContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
+    self.backgroundManagedObjectContext.persistentStoreCoordinator = psc;
 
     self.managedObjectContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSMainQueueConcurrencyType];
-    self.managedObjectContext.persistentStoreCoordinator = psc;
+    self.managedObjectContext.parentContext = self.backgroundManagedObjectContext;
     
-    self.backgroundManagedObjectContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
-    self.backgroundManagedObjectContext.parentContext = self.managedObjectContext;
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(managedObjectContextDidSave:)
+                                                 name:NSManagedObjectContextDidSaveNotification
+                                               object:self.backgroundManagedObjectContext];
 
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSURL *documentsURL = [[fileManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject];
@@ -297,6 +321,7 @@
     NSLog(@"storeURL: %@", storeURL);
     
     dispatch_async(dispatch_get_global_queue( QOS_CLASS_DEFAULT, 0), ^(void) {
+        
         NSError *error = nil;
         NSPersistentStore *store = [psc addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:nil error:&error];
         completitionBlock(store != nil, error);

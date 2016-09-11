@@ -21,8 +21,16 @@
     // Configure the view for the selected state
 }
 
-- (void)configureWithContact:(Contact*)contact {
-    self.label.text = [NSString stringWithFormat:@"%@ %@", contact.familyName, contact.givenName];
+- (NSString *)displayNameWithContact:(StoredContact*)contact {
+    if ([contact.familyName length] == 0 && [contact.givenName length] == 0)
+        return @"<Unknown>";
+    
+    return [NSString stringWithFormat:@"%@ %@", contact.familyName, contact.givenName];
+}
+
+- (void)configureWithContact:(StoredContact*)contact {
+    
+    self.label.text = [self displayNameWithContact:contact];
 }
 
 @end

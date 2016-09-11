@@ -61,7 +61,7 @@
 }
 
 - (NSString*)description {
-    return [NSString stringWithFormat:@"%@;%@;%@", self.identifier, self.givenName, self.familyName];
+    return [NSString stringWithFormat:@"%@;%@;%@;%@", self.objectID, self.identifier, self.givenName, self.familyName];
 }
 
 - (BOOL)isContentIdentical:(Contact*)contact

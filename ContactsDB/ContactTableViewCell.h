@@ -7,11 +7,11 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "Contact.h"
+#import "StoredContact.h"
 
 @interface ContactTableViewCell : UITableViewCell
 
 @property (weak, nonatomic) IBOutlet UILabel *label;
-- (void)configureWithContact:(Contact*)contact;
+- (void)configureWithContact:(StoredContact*)contact;
 
 @end

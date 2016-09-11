@@ -5,7 +5,7 @@
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
     </dependencies>
     <scenes>
-        <!--Contacts List View Controller-->
+        <!--Contacts-->
         <scene sceneID="Cre-mh-q7d">
             <objects>
                 <tableViewController id="K45-ud-3sD" customClass="ContactsListViewController" sceneMemberID="viewController">
@@ -24,7 +24,7 @@
                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="FfS-NF-XAj">
                                             <rect key="frame" x="8" y="8" width="584" height="27"/>
                                             <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                            <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
+                                            <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="calibratedRGB"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                     </subviews>
@@ -39,7 +39,7 @@
                             <outlet property="delegate" destination="K45-ud-3sD" id="n6r-rI-gp5"/>
                         </connections>
                     </tableView>
-                    <navigationItem key="navigationItem" id="JXq-SF-0wj"/>
+                    <navigationItem key="navigationItem" title="Contacts" id="JXq-SF-0wj"/>
                 </tableViewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="fGP-pe-hEn" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>

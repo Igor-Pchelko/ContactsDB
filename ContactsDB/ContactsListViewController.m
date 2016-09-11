@@ -61,7 +61,7 @@
     ContactTableViewCell *cell = (ContactTableViewCell *)[tableView dequeueReusableCellWithIdentifier:kContactCellID];
     
     // Get the specific earthquake for this row.
-    Contact *contact = [self.fetchedResultsController objectAtIndexPath:indexPath];
+    StoredContact *contact = [self.fetchedResultsController objectAtIndexPath:indexPath];
     
     [cell configureWithContact:contact];
     
